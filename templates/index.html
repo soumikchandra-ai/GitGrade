@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitGrade - Developer Profiler</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f3f4f6; --text: #1f2937; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        /* Header */
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { color: var(--primary); margin: 0; }
+        .header p { color: #6b7280; }
+
+        /* Search Box */
+        .search-box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); display: flex; gap: 10px; }
+        input { flex: 1; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px; outline: none; }
+        input:focus { border-color: var(--primary); }
+        button { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #1d4ed8; }
+
+        /* Results Grid */
+        .dashboard { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-top: 30px; }
+        
+        /* Score Card */
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .score-circle {
+            width: 120px; height: 120px; border-radius: 50%;
+            background: conic-gradient(var(--primary) calc(var(--score) * 1%), #e5e7eb 0);
+            margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center;
+        }
+        .score-circle::before {
+            content: ""; position: absolute; width: 100px; height: 100px; background: white; border-radius: 50%;
+        }
+        .score-text { position: absolute; font-size: 32px; font-weight: bold; }
+        .score-label { text-align: center; margin-top: 15px; font-weight: bold; font-size: 18px; }
+
+        /* Roadmap List */
+        .roadmap-list { list-style: none; padding: 0; }
+        .roadmap-item {
+            background: #eff6ff; border-left: 4px solid var(--primary);
+            padding: 15px; margin-bottom: 10px; border-radius: 4px;
+        }
+        .roadmap-title { font-weight: bold; margin-bottom: 10px; display: block; }
+
+        /* Loading Animation */
+        .loading { display: none; text-align: center; margin-top: 20px; font-style: italic; color: #666; }
+    </style>
+    <script>
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.querySelector('.dashboard').style.display = 'none';
+        }
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>GitGrade</h1>
+        <p>AI-Powered GitHub Repository Evaluator</p>
+    </div>
+
+    <div class="search-box">
+        <form action="/" method="POST" style="display:flex; width:100%; gap:10px;" onsubmit="showLoading()">
+            <input type="text" name="repo_url" placeholder="Paste GitHub Repository URL..." required>
+            <button type="submit">Analyze Repo</button>
+        </form>
+    </div>
+
+    <div id="loading" class="loading">
+        Analyzing code structure, commits, and quality... 
+    </div>
+
+    {% if error %}
+        <div style="background:#fee2e2; color:#991b1b; padding:15px; margin-top:20px; border-radius:8px;">
+            Error: {{ error }}
+        </div>
+    {% endif %}
+
+    {% if result %}
+    <div class="dashboard">
+        <div class="card" style="text-align: center;">
+            <h3>Project Grade</h3>
+            <div class="score-circle" style="--score: {{ result.score }};">
+                <span class="score-text">{{ result.score }}</span>
+            </div>
+            <p class="score-label">
+                {% if result.score > 80 %} 🥇 Excellent
+                {% elif result.score > 50 %} 🥈 Good Start
+                {% else %} 🥉 Needs Work {% endif %}
+            </p>
+        </div>
+
+        <div class="card">
+            <h3> Executive Summary</h3>
+            <p>{{ result.summary }}</p>
+
+            <h3 style="margin-top:25px; display:flex; justify-content:space-between; align-items:center;">
+     Personalized Roadmap
+    <button type="button" onclick="copyRoadmap()" style="padding:5px 10px; font-size:12px; background:#10b981; border:none; color:white; border-radius:4px; cursor:pointer;">
+    Copy Steps
+</button>
+</h3>
+            <ul class="roadmap-list">
+                {% for step in result.roadmap %}
+                <li class="roadmap-item">
+                    {{ step }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+    <script>
+    function showLoading() {
+        document.getElementById('loading').style.display = 'block';
+        document.querySelector('.dashboard').style.display = 'none';
+    }
+
+    function copyRoadmap() {
+        // 1. Find all the roadmap items
+        const items = document.querySelectorAll('.roadmap-item');
+        
+        // Safety check
+        if (items.length === 0) {
+            alert("No items to copy!");
+            return;
+        }
+
+        // 2. Build the text
+        let text = " My AI Coding Roadmap:\n\n";
+        items.forEach(item => {
+            text += "☐ " + item.innerText.trim() + "\n";
+        });
+
+        // 3. Try the modern way first
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert(" Copied to clipboard!");
+            }).catch(err => {
+                console.error("Clipboard failed, trying fallback...", err);
+                fallbackCopy(text);
+            });
+        } else {
+            // If modern way fails, use the old robust way
+            fallbackCopy(text);
+        }
+    }
+
+    // 4. Robust Fallback method (works on all browsers)
+    function fallbackCopy(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            alert(" Copied to clipboard!");
+        } catch (err) {
+            console.error('Fallback failed', err);
+            alert(" Could not copy automatically. Please select the text manually.");
+        }
+        document.body.removeChild(textArea);
+    }
+</script>
+</body>
+</html>
